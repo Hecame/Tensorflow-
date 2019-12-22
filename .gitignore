@@ -1,0 +1,15 @@
+# python:
+*.py[cod]
+dist
+build
+
+#tags文件
+.tags
+
+#vim备份文件
+*.swp
+
+# my configurations:
+
+#其他文件 
+
