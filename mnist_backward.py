@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 import mnist_forward
 import os
+import mnist_generateds     #i
 
 
 BATCH_SIZE = 200    #定义每次输入数据集数量
@@ -14,9 +15,10 @@ STEPS = 50000
 MOVING_AVERAGE_DECAY = 0.99     #滑动平均衰减比较值
 MODEL_SAVE_PATH = "./model/"    #模型保存路径
 MODEL_NAME = "mnist_model"      #模型保存名称
+train_num_examples = 60000  #! 训练总样本数
 
 
-def backward(mnist):
+def backward():
 
     x = tf.placeholder(tf.float32, [None, mnist_forward.INPUT_NODE])
     y_ = tf.placeholder(tf.float32, [None, mnist_forward.OUTPUT_NODE])
@@ -32,7 +34,8 @@ def backward(mnist):
     learning_rate = tf.train.exponential_decay(
             LEARNING_RATE_BASE,
             global_step,
-            mnist.train.num_examples / BATCH_SIZE,
+            #mnist.train.num_examples / BATCH_SIZE 
+            train_num_examples / BATCH_SIZE,
             LEARNING_RATE_DECAY,
             staircase = True)
 
@@ -49,6 +52,10 @@ def backward(mnist):
     #定义saver实例
     saver = tf.train.Saver()
 
+    #获取batch_size单位数据集
+    img_batch, label_batch = mnist_generateds.get_tfRecord(BATCH_SIZE, isTrain=True)
+
+
     #会话
     with tf.Session() as sess:
         init_op = tf.global_variables_initializer()
@@ -59,18 +66,29 @@ def backward(mnist):
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
 
+        #加速批处理,使用线程协调器
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+
         for i in range(STEPS):
             #随机从训练集中抽取 BATCH_SIZE 组数据
-            xs, ys = mnist.train.next_batch(BATCH_SIZE)
+            #xs, ys = mnist.train.next_batch(BATCH_SIZE)
+            xs, ys = sess.run([img_batch, label_batch])
             _, loss_value, step = sess.run([train_op, loss, global_step], feed_dict={x: xs, y_: ys})
             if i % 1000 == 0:
                 print("After %d training steps, loss on training batch is %g." % (step, loss_value))
                 #保存模型
                 saver.save(sess, os.path.join(MODEL_SAVE_PATH,MODEL_NAME), global_step= global_step)
 
+        #关闭线程协调器
+        coord.request_stop()
+        coord.join(threads)
+
 def main():
-    mnist = input_data.read_data_sets("./data/", one_hot=True)
-    backward(mnist)
+    #mnist = input_data.read_data_sets("./data/", one_hot=True)
+    #backward(mnist)
+    backward()
 
 if __name__ == '__main__':
     main()
