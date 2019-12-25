@@ -6,6 +6,13 @@
 dist
 build
 
+
+#tags文件
+.tags
+
+#vim备份文件
+*.swp
+
 #其他
 
 
